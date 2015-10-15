@@ -163,7 +163,6 @@ navigator.webkitGetUserMedia({video: true, audio: false},
       localVideo.src = window.webkitURL.createObjectURL(stream);
       localVideo.play();
   localVideo.volume = 0;
-      renderStart();
     },
     function (error) { // error
       console.error('An error occurred: [CODE ' + error.code + ']');
@@ -171,56 +170,6 @@ navigator.webkitGetUserMedia({video: true, audio: false},
     }
 );
   }
-
-function renderStart() {
-    var video = document.getElementById('local-video');
-    var buffer = document.createElement('canvas');
-    var display = document.getElementById('display_canvas');
-    var bufferContext = buffer.getContext('2d');
-    var displayContext = display.getContext('2d');
-    var render = function() {
-      requestAnimationFrame(render);
-      var width = video.videoWidth;
-      var height = video.videoHeight;
-      if (width == 0 || height == 0) {return;}
-      buffer.width = display.width = width;
-      buffer.height = display.height = height;
-      bufferContext.drawImage(video, 0, 0);
-				      
-      var src = bufferContext.getImageData(0, 0, width, height);
-      var dest = bufferContext.createImageData(buffer.width, buffer.height);
-			      
-      var r = 80;
-      var d = 80;
-      for (var src_row = 0; src_row < height; src_row++) {
-          for (var src_col = 0; src_col < width; src_col++) {
-	       // 原点を画像の中心にもっていく
-	      var src_x = src_col - width/2;
-       	      var src_y = height/2 - src_row;
-								      
-	      // 等距離射影
-	      var l = Math.sqrt(Math.pow(src_x, 2) + Math.pow(src_y, 2));
-              var dest_x = Math.floor(r * src_x * Math.atan(l/d) / l);
-	      var dest_y = Math.floor(r * src_y * Math.atan(l/d) / l);
-							      
-	      // 原点を左上に戻す
-	      var dest_col = width/2 + dest_x;
-	      var dest_row = height/2 - dest_y;
-												      
-              var src_address = (src_row*width + src_col)*4;
-	      var dest_address = (dest_row*width + dest_col)*4;
-											      
-	      dest.data[dest_address + 0] = src.data[src_address + 0];
-	      dest.data[dest_address + 1] = src.data[src_address + 1];
-	      dest.data[dest_address + 2] = src.data[src_address + 2];
-              dest.data[dest_address + 3] = 255;
-      }
-     }
-						      
-     displayContext.putImageData(dest, 0, 0);
-     };
-  render();
-}
  
   // stop local video
   function stopVideo() {
@@ -262,6 +211,7 @@ function renderStart() {
     function onRemoteStreamAdded(event) {
       console.log("Added remote stream");
       remoteVideo.src = window.webkitURL.createObjectURL(event.stream);
+      renderStart();
     }
  
     // when remote removes a stream, remove it from the local video element
@@ -272,6 +222,56 @@ function renderStart() {
  
     return peer;
   }
+
+function renderStart() {
+    var video = document.getElementById('remote-video');
+    var buffer = document.createElement('canvas');
+    var display = document.getElementById('display_canvas');
+    var bufferContext = buffer.getContext('2d');
+    var displayContext = display.getContext('2d');
+    var render = function() {
+      requestAnimationFrame(render);
+      var width = video.videoWidth;
+      var height = video.videoHeight;
+      if (width == 0 || height == 0) {return;}
+      buffer.width = display.width = width;
+      buffer.height = display.height = height;
+      bufferContext.drawImage(video, 0, 0);
+
+      var src = bufferContext.getImageData(0, 0, width, height);
+      var dest = bufferContext.createImageData(buffer.width, buffer.height);
+
+      var r = 80;
+      var d = 80;
+      for (var src_row = 0; src_row < height; src_row++) {
+          for (var src_col = 0; src_col < width; src_col++) {
+               // 原点を画像の中心にもっていく
+              var src_x = src_col - width/2;
+              var src_y = height/2 - src_row;
+
+              // 等距離射影
+              var l = Math.sqrt(Math.pow(src_x, 2) + Math.pow(src_y, 2));
+              var dest_x = Math.floor(r * src_x * Math.atan(l/d) / l);
+              var dest_y = Math.floor(r * src_y * Math.atan(l/d) / l);
+
+              // 原点を左上に戻す
+              var dest_col = width/2 + dest_x;
+              var dest_row = height/2 - dest_y;
+                                                                              
+              var src_address = (src_row*width + src_col)*4;
+              var dest_address = (dest_row*width + dest_col)*4;
+                                                                            
+              dest.data[dest_address + 0] = src.data[src_address + 0];
+              dest.data[dest_address + 1] = src.data[src_address + 1];
+              dest.data[dest_address + 2] = src.data[src_address + 2];
+              dest.data[dest_address + 3] = 255;
+      }
+     }
+
+     displayContext.putImageData(dest, 0, 0);
+     };
+  render();
+}
  
   function sendOffer() {
     peerConnection = prepareNewConnection();
